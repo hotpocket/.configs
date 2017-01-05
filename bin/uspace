@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# uspace = used space
+# used to determine where our disk space went.
+# should print largest to smallest top to bottom
+
+if [ -z $1 ]; then
+  echo "Usage: $(basename $0) [path]"
+  exit 255
+fi
+
+my_uid=`id -u 2> /dev/null`
+if [ ! -z "$my_uid" ]; then
+  if [ $my_uid != 0 ]; then
+    echo -e "\n==========================================="
+    echo -e "You are not the root user!"
+    echo -e "You may not see everything you want to see."
+    echo -e "You have been warned"
+    echo -e "===========================================\n"
+  fi
+fi
+
+export IFS=$'\n'
+list=`du -hd1 $1 2>&1 | grep -E '[0-9][GM]' | grep -vi 'Permission Denied' | sort -nr`
+gigsList=()
+megsList=()
+
+for i in $list; do
+  #gigsList+=
+  megs=`echo "$i" | grep -E '[0-9][M]'`
+  gigs=`echo "$i" | grep -E '[0-9][G]'`
+  if [[ -n $megs ]]; then
+    megsList+=("$megs")
+  fi
+  if [[ -n $gigs ]]; then
+    gigsList+=("$gigs")
+  fi
+done
+
+for ((i=0 ; i < ${#gigsList[@]} ; i++ )); do
+  echo ${gigsList[$i]}
+done
+
+for ((i=0 ; i < ${#megsList[@]} ; i++ )); do
+  echo ${megsList[$i]}
+done
+
+if [ ${#megsList[@]} -eq "0" -a ${#gigsList[@]} -eq "0" ]; then
+  echo "Folder '$1' contains < 1M of content"
+fi
+

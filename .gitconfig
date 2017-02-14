@@ -1,0 +1,18 @@
+[user]
+  name = blandry
+  email = sirjava@gmail.com
+[alias]
+  lg = log --oneline --decorate --all --graph
+  stat = status --porcelain -b
+  unstage = reset HEAD --
+  hist = log --pretty=format:'%h%x09%an%x09%ad%x09%s' --stat --date=short
+[core]
+  editor = vi
+	autocrlf = input
+  whitespace = cr-at-eol
+	pager = less -r
+[push]
+[color]
+	ui = true
+[push]
+	default = simple

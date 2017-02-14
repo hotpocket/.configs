@@ -9,7 +9,8 @@ BLUE='\e[1;34m'
 cyan='\e[0;36m'
 CYAN='\e[1;36m'
 NC='\e[0m'
- 
+DATE='\D{%a %b %d%k:%M}'  # ~like~  'Mon Feb 13 23:51'
+
 [ -z "$PS1" ] && return
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend
@@ -22,20 +23,22 @@ PROMPT_COMMAND='history -a'
 # make less more friendly for non-text input files, see lesspipe(1)
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
  
-[ -n "$SSH_CLIENT" ] && ps1_informer=" ${BLUE}[ssh]${NC}"
+[ -n "$SSH_CLIENT" ] && IN_SSH=" ${BLUE}[ssh]${NC}"
 
-# if mac use the ifconfig command
+# if mac use the ifconfig command   ... we don't need no stinkin macs!
 #THEIP=$(uname -o | grep -i darwin > /dev/null 2>&1 && echo "$(ifconfig|grep broadcast|awk ' { print $2 }')")
+
 THEIP=$(type ip > /dev/null 2>&1 && echo $(ip route get 8.8.8.8 | awk '{print $NF; exit}'))
+
 if [ -z "$THEIP" ]; then
   #THEIP=$(uname -o | grep -i linux > /dev/null 2>&1 && echo "echo $(ip route get 8.8.8.8 | awk '{print $NF; exit}')")
   THEIP='IP_MISSING'
 fi
-if [ $(id -u) -eq 0 ];
-then
-  PS1="┌${RED}[\u]${NC} [$THEIP]$ps1_informer:\[\e[0;32;49m\]\w\[\e[0m \n└>"
-else
-  PS1="┌[${GREEN}\u${NC}] [$THEIP]$ps1_informer:\[\e[0;32;49m\]\w\[\e[0m \n└>"
-fi
 
+
+if [ $(id -u) -eq 0 ]; then
+  PS1="┌[${RED}\u${NC}] [$THEIP]${IN_SSH} [${DATE}]: ${green}\w${NC} \n└>"
+else
+  PS1="┌[${GREEN}\u@\H${NC}] [$THEIP]${IN_SSH} [${DATE}]: ${green}\w${NC} \n└>"
+fi
 

@@ -131,7 +131,7 @@ export IBUS_ENABLE_SYNC_MODE=1
 # tell wp scripts about my env
 export CURRENT_ENVIRONMENT=ENV_BRANDON
 
-if [ -d /home/brandon ] && [ `hostname` == 'Brandon-Landry-Pixel-LS' ];then
+if [ -d /home/brandon ] && [ `hostname` == 'BDL-PLS' ];then
     export PATH=$PATH:/home/brandon/bin/svnkit-1.7.14/bin
     test -d ~/minime && . ~/minime/audit_scripts/vars.sh
     PATH="/home/brandon/perl5/bin${PATH+:}${PATH}"; export PATH;

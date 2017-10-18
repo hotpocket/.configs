@@ -39,7 +39,13 @@ fi
 # display my venv on my terms, not theirs
 export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 PY_VENV=""
+# check if $PYENV_VERSION has non-zero size
 [ -n "$PYENV_VERSION" ] && PY_VENV="(${CYAN}$PYENV_VERSION${NC}) "
+
+# pyenv will auto activate a virtualenv if there is a .python-version in . or above and it specifies a valid virtualenv
+PY_VENV_AUTO=`pyenv virtualenvs | grep ^\* | sed -E 's/\* (\w*).*/\1/'`
+[ -n "$PY_VENV_AUTO" ] && PY_VENV="(${CYAN}$PY_VENV_AUTO${NC}) "
+
 
 if [ $(id -u) -eq 0 ]; then
   PS1="┌[${RED}\u${NC}] [$THEIP]${IN_SSH} [${DATE}]: ${green}\w${NC} \n└>"

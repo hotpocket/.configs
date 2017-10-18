@@ -18,7 +18,8 @@ HISTSIZE=1000
 HISTFILESIZE=2000
 shopt -s checkwinsize
 complete -cf sudo
-PROMPT_COMMAND='history -a'
+# moved into .bashrc so i can run multiple commands for updating of env vars w/o having an infinite recursive loop
+#PROMPT_COMMAND='history -a'
  
 # make less more friendly for non-text input files, see lesspipe(1)
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
@@ -35,10 +36,14 @@ if [ -z "$THEIP" ]; then
   THEIP='IP_MISSING'
 fi
 
+# display my venv on my terms, not theirs
+export PYENV_VIRTUALENV_DISABLE_PROMPT=1
+PY_VENV=""
+[ -n "$PYENV_VERSION" ] && PY_VENV="(${CYAN}$PYENV_VERSION${NC}) "
 
 if [ $(id -u) -eq 0 ]; then
   PS1="┌[${RED}\u${NC}] [$THEIP]${IN_SSH} [${DATE}]: ${green}\w${NC} \n└>"
 else
-  PS1="┌[${green}\u@\H${NC}] [$THEIP]${IN_SSH} [${DATE}]: ${green}\w${NC} \n└>"
+  PS1="┌$PY_VENV[${green}\u@\H${NC}] [$THEIP]${IN_SSH} [${DATE}]: ${green}\w${NC} \n└>"
 fi
 

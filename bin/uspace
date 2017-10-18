@@ -10,15 +10,15 @@ if [ -z $1 ]; then
 fi
 
 my_uid=`id -u 2> /dev/null`
-if [ ! -z "$my_uid" ]; then
-  if [ $my_uid != 0 ]; then
-    echo -e "\n==========================================="
-    echo -e "You are not the root user!"
-    echo -e "You may not see everything you want to see."
-    echo -e "You have been warned"
-    echo -e "===========================================\n"
-  fi
-fi
+#if [ ! -z "$my_uid" ]; then
+#  if [ $my_uid != 0 ]; then
+#    echo -e "\n==========================================="
+#    echo -e "You are not the root user!"
+#    echo -e "You may not see everything you want to see."
+#    echo -e "You have been warned"
+#    echo -e "===========================================\n"
+#  fi
+#fi
 
 export IFS=$'\n'
 list=`du -hd1 $1 2>&1 | grep -E '[0-9][GM]' | grep -vi 'Permission Denied' | sort -nr`

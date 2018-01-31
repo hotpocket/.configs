@@ -1,0 +1,15 @@
+async_run
+checkUpstream
+get_theme
+git_prompt_config
+git_prompt_dir
+git_prompt_load_colors
+git_prompt_load_theme
+gp_maybe_set_envar_to_path
+gp_set_file_var
+is_function
+olderThanMinutes
+setGitPrompt
+setLastCommandState
+update_old_git_prompt
+updatePrompt

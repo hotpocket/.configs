@@ -3,39 +3,11 @@
 # the dir that this script resides in
 dir=$(dirname $BASH_SOURCE)
 
+# enable/disable git remote status checks
+online=true
+
 source $dir/prompt-colors.sh
 source $dir/themes/default
-
-function async_run {
-  echo "async_run called" >> /tmp/gitp.log
-  {
-    eval "$@" &> /dev/null
-  }&
-}
-
-function git_prompt_dir {
-  echo "git_prompt_dir called" >> /tmp/gitp.log
-  # assume the gitstatus.sh is in the same directory as this script
-  # code thanks to http://stackoverflow.com/questions/59895
-  if [ -z "$__GIT_PROMPT_DIR" ]; then
-    local SOURCE="${BASH_SOURCE[0]}"
-    while [ -h "$SOURCE" ]; do
-      local DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-      SOURCE="$(readlink "$SOURCE")"
-      [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
-    done
-    __GIT_PROMPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-  fi
-}
-
-# gp_set_file_var ENVAR SOMEFILE
-#
-# If ENVAR is set, check that it's value exists as a readable file.  Otherwise,
-# Set ENVAR to the path to SOMEFILE, based on $HOME, $__GIT_PROMPT_DIR, and the
-# directory of the current script.  The SOMEFILE can be prefixed with '.', or
-# not.
-#
-# Return 0 (success) if ENVAR not already defined, 1 (failure) otherwise.
 
 function gp_set_file_var {
   echo "gp_set_file_var called" >> /tmp/gitp.log
@@ -50,8 +22,7 @@ function gp_set_file_var {
   else  # envar is not set, or it's set to a different file than requested
     eval "$envar="      # set empty envar
     gp_maybe_set_envar_to_path "$envar" "$HOME/.$file" "$HOME/$file" "$HOME/lib/$file" && return 0
-    git_prompt_dir
-    gp_maybe_set_envar_to_path "$envar" "$__GIT_PROMPT_DIR/$file" "${0##*/}/$file"     && return 0
+    gp_maybe_set_envar_to_path "$envar" "$dir/$file" "${0##*/}/$file"     && return 0
   fi
   return 1
 }
@@ -82,7 +53,7 @@ function gp_maybe_set_envar_to_path {
 
 git_prompt_reset() {
   local var
-  for var in GIT_PROMPT_DIR __GIT_PROMPT_COLORS_FILE __PROMPT_COLORS_FILE __GIT_STATUS_CMD GIT_PROMPT_THEME_NAME; do
+  for var in __GIT_PROMPT_COLORS_FILE __PROMPT_COLORS_FILE GIT_PROMPT_THEME_NAME; do
     unset $var
   done
 }
@@ -169,14 +140,6 @@ function git_prompt_config {
     GIT_PROMPT_FETCH_TIMEOUT="5"
   fi
 
-  if [[ -z "$__GIT_STATUS_CMD" ]] ; then          # if GIT_STATUS_CMD not defined..
-    git_prompt_dir
-    if ! gp_maybe_set_envar_to_path __GIT_STATUS_CMD "$__GIT_PROMPT_DIR/$GIT_PROMPT_STATUS_COMMAND" ; then
-      echo 1>&2 "Cannot find $GIT_PROMPT_STATUS_COMMAND!"
-    fi
-    # __GIT_STATUS_CMD defined
-  fi
-
   unset GIT_BRANCH
 }
 
@@ -194,41 +157,25 @@ function we_are_on_repo {
   echo 0
 }
 
-function update_old_git_prompt {
-  echo "update_old_git_prompt called" >> /tmp/gitp.log
-  local in_repo=$(we_are_on_repo)
-  if [[ $GIT_PROMPT_OLD_DIR_WAS_GIT = 0 ]]; then
-    OLD_GITPROMPT=$PS1
-  fi
-
-  GIT_PROMPT_OLD_DIR_WAS_GIT=$in_repo
-}
-
 function setGitPrompt {
   echo "setGitPrompt called" >> /tmp/gitp.log
-  update_old_git_prompt
 
   local repo=$(git rev-parse --show-toplevel 2> /dev/null)
+
+  # Don't generate stuff if not in a git repo
   if [[ ! -e "$repo" ]] && [[ "$GIT_PROMPT_ONLY_IN_REPO" = 1 ]]; then
-    # we do not permit bash-git-prompt outside git repos, so nothing to do
-#    PS1="$OLD_GITPROMPT"
     return
   fi
 
   local EMPTY_PROMPT
-  local __GIT_STATUS_CMD
 
   git_prompt_config
 
   if [[ ! -e "$repo" ]] || [[ "$GIT_PROMPT_DISABLE" = 1 ]]; then
-#    PS1="$EMPTY_PROMPT"
     return
   fi
 
   local FETCH_REMOTE_STATUS=1
-  if [[ "$GIT_PROMPT_FETCH_REMOTE_STATUS" = 0 ]]; then
-    FETCH_REMOTE_STATUS=0
-  fi
 
   unset GIT_PROMPT_IGNORE
   OLD_GIT_PROMPT_SHOW_UNTRACKED_FILES=${GIT_PROMPT_SHOW_UNTRACKED_FILES}
@@ -236,16 +183,6 @@ function setGitPrompt {
 
   OLD_GIT_PROMPT_IGNORE_SUBMODULES=${GIT_PROMPT_IGNORE_SUBMODULES}
   unset GIT_PROMPT_IGNORE_SUBMODULES
-
-  if [[ -e "$repo/.bash-git-rc" ]]; then
-    # The config file can only contain variable declarations on the form A_B=0 or G_P=all
-    local CONFIG_SYNTAX="^(FETCH_REMOTE_STATUS|GIT_PROMPT_SHOW_UNTRACKED_FILES|GIT_PROMPT_IGNORE_SUBMODULES|GIT_PROMPT_IGNORE)=[0-9a-z]+$"
-    if egrep -q -v "$CONFIG_SYNTAX" "$repo/.bash-git-rc"; then
-      echo ".bash-git-rc can only contain variable values on the form NAME=value. Ignoring file." >&2
-    else
-      source "$repo/.bash-git-rc"
-    fi
-  fi
 
   if [ -z "${GIT_PROMPT_SHOW_UNTRACKED_FILES}" ]; then
     GIT_PROMPT_SHOW_UNTRACKED_FILES=${OLD_GIT_PROMPT_SHOW_UNTRACKED_FILES}
@@ -258,15 +195,15 @@ function setGitPrompt {
   unset OLD_GIT_PROMPT_IGNORE_SUBMODULES
 
   if [[ "$GIT_PROMPT_IGNORE" = 1 ]]; then
-#    PS1="$EMPTY_PROMPT"
     return
   fi
 
-  if [[ "$FETCH_REMOTE_STATUS" = 1 ]]; then
+  if $online; then
     checkUpstream
   fi
-
-  updatePrompt
+  
+  # seperate this out for now.  i'm in isolation mode.
+  #updatePrompt
 }
 
 function olderThanMinutes {
@@ -288,7 +225,7 @@ function checkUpstream {
   git_prompt_config
 
   local FETCH_HEAD="$repo/.git/FETCH_HEAD"
-  # Fech repo if local is stale for more than $GIT_FETCH_TIMEOUT minutes
+#  # Fech repo if local is stale for more than $GIT_FETCH_TIMEOUT minutes
   if [[ ! -e "$FETCH_HEAD" ]] || olderThanMinutes "$FETCH_HEAD" "$GIT_PROMPT_FETCH_TIMEOUT"
   then
     if [[ -n $(git remote show) ]]; then
@@ -300,20 +237,20 @@ function checkUpstream {
   fi
 }
 
-function checkUpstream {
-  echo "checkUpstream called" >> /tmp/gitp.log
-  local GIT_PROMPT_FETCH_TIMEOUT
-  git_prompt_config
-
-  local FETCH_HEAD="$repo/.git/FETCH_HEAD"
-  # Fech repo if local is stale for more than $GIT_FETCH_TIMEOUT minutes
-  if [[ ! -e "$FETCH_HEAD" ]]  \
-     || olderThanMinutes "$FETCH_HEAD" "$GIT_PROMPT_FETCH_TIMEOUT"  \
-     && [[ -n $(git remote show) ]];
-  then
-    git fetch --quiet /dev/null 2>&1 &
-  fi
-}
+#function checkUpstream {
+#  echo "checkUpstream called" >> /tmp/gitp.log
+#  local GIT_PROMPT_FETCH_TIMEOUT
+#  git_prompt_config
+#
+#  local FETCH_HEAD="$repo/.git/FETCH_HEAD"
+#  # Fech repo if local is stale for more than $GIT_FETCH_TIMEOUT minutes
+#  if [[ ! -e "$FETCH_HEAD" ]]  \
+#     || olderThanMinutes "$FETCH_HEAD" "$GIT_PROMPT_FETCH_TIMEOUT"  \
+#     && [[ -n $(git remote show) ]];
+#  then
+#    GIT_TERMINAL_PROMPT=0 git fetch --quiet > /dev/null 2>&1 &
+#  fi
+#}
 
 function replaceSymbols {
   echo "replaceSymbols called" >> /tmp/gitp.log
@@ -349,263 +286,12 @@ function createPrivateIndex {
   echo "$__GIT_INDEX_PRIVATE"
 }
 
-function updatePrompt {
-  echo "updatePrompt called" >> /tmp/gitp.log
-  local LAST_COMMAND_INDICATOR
-  local PROMPT_LEADING_SPACE
-  local PROMPT_START
-  local PROMPT_END
-  local EMPTY_PROMPT
-  local Blue="\[\033[0;34m\]"
-
-  git_prompt_config
-
-  export __GIT_PROMPT_IGNORE_STASH=${GIT_PROMPT_IGNORE_STASH}
-  export __GIT_PROMPT_SHOW_UPSTREAM=${GIT_PROMPT_SHOW_UPSTREAM}
-  export __GIT_PROMPT_IGNORE_SUBMODULES=${GIT_PROMPT_IGNORE_SUBMODULES}
-
-  if [ -z "${GIT_PROMPT_SHOW_UNTRACKED_FILES}" ]; then
-    export __GIT_PROMPT_SHOW_UNTRACKED_FILES=all
-  else
-    export __GIT_PROMPT_SHOW_UNTRACKED_FILES=${GIT_PROMPT_SHOW_UNTRACKED_FILES}
-  fi
-
-  if [ -z "${GIT_PROMPT_SHOW_CHANGED_FILES_COUNT}" ]; then
-    export __GIT_PROMPT_SHOW_CHANGED_FILES_COUNT=1
-  else
-    export __GIT_PROMPT_SHOW_CHANGED_FILES_COUNT=${GIT_PROMPT_SHOW_CHANGED_FILES_COUNT}
-  fi
-
-  local GIT_INDEX_PRIVATE="$(createPrivateIndex)"
-  #important to define GIT_INDEX_FILE as local: This way it only affects this function (and below) - even with the export afterwards
-  local GIT_INDEX_FILE
-  export GIT_INDEX_FILE="$GIT_INDEX_PRIVATE"
-
-  local -a git_status_fields
-  git_status_fields=($("$__GIT_STATUS_CMD" 2>/dev/null))
-  echo "$__GIT_STATUS_CMD" >> /tmp/gitp_cmd.log
-  
-  printf '%s\n' "${git_status_fields[@]}" > /tmp/gitp_fields.log
-
-  export GIT_BRANCH=$(replaceSymbols ${git_status_fields[0]})
-  local GIT_REMOTE="$(replaceSymbols ${git_status_fields[1]})"
-  if [[ "." == "$GIT_REMOTE" ]]; then
-    unset GIT_REMOTE
-  fi
-
-  local GIT_UPSTREAM_PRIVATE="${git_status_fields[2]}"
-  if [[ -z "${__GIT_PROMPT_SHOW_UPSTREAM}" || "^" == "$GIT_UPSTREAM_PRIVATE" ]]; then
-    unset GIT_UPSTREAM
-  else
-    export GIT_UPSTREAM=${GIT_UPSTREAM_PRIVATE}
-    local GIT_FORMATTED_UPSTREAM="${GIT_PROMPT_UPSTREAM//_UPSTREAM_/\$GIT_UPSTREAM}"
-  fi
-
-  local GIT_STAGED=${git_status_fields[3]}
-  local GIT_CONFLICTS=${git_status_fields[4]}
-  local GIT_CHANGED=${git_status_fields[5]}
-  local GIT_UNTRACKED=${git_status_fields[6]}
-  local GIT_STASHED=${git_status_fields[7]}
-  local GIT_CLEAN=${git_status_fields[8]}
-
-  local NEW_PROMPT="$EMPTY_PROMPT"
-  if [[ -n "$git_status_fields" ]]; then
-
-    case "$GIT_BRANCH" in
-      $GIT_PROMPT_MASTER_BRANCHES)
-        local STATUS_PREFIX="${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_MASTER_BRANCH}\${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}"
-        ;;
-      *)
-        local STATUS_PREFIX="${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_BRANCH}\${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}"
-        ;;
-    esac
-    local STATUS=""
-
-    # __add_status KIND VALEXPR INSERT
-    # eg: __add_status  'STAGED' '-ne 0'
-
-    __chk_gitvar_status() {
-      local v
-      if [[ "x$2" == "x-n" ]] ; then
-        v="$2 \"\$GIT_$1\""
-      else
-        v="\$GIT_$1 $2"
-      fi
-      if eval "test $v" ; then
-        if [[ $# -lt 2 || "$3" != '-' ]] && [[ "x$__GIT_PROMPT_SHOW_CHANGED_FILES_COUNT" == "x1" || "x$1" == "xREMOTE" ]]; then
-          __add_status "\$GIT_PROMPT_$1\$GIT_$1\$ResetColor"
-        else
-          __add_status "\$GIT_PROMPT_$1\$ResetColor"
-        fi
-      fi
-    }
-
-    __add_gitvar_status() {
-      __add_status "\$GIT_PROMPT_$1\$GIT_$1\$ResetColor"
-    }
-
-    # __add_status SOMETEXT
-    __add_status() {
-      eval "STATUS=\"$STATUS$1\""
-    }
-
-    __chk_gitvar_status 'REMOTE'     '-n'
-    if [[ $GIT_CLEAN -eq 0 ]] || [[ $GIT_PROMPT_CLEAN != "" ]]; then
-      __add_status        "$GIT_PROMPT_SEPARATOR"
-      __chk_gitvar_status 'STAGED'     '!= "0" -a $GIT_STAGED != "^"'
-      __chk_gitvar_status 'CONFLICTS'  '!= "0"'
-      __chk_gitvar_status 'CHANGED'    '!= "0"'
-      __chk_gitvar_status 'UNTRACKED'  '!= "0"'
-      __chk_gitvar_status 'STASHED'    '!= "0"'
-      __chk_gitvar_status 'CLEAN'      '= "1"'   -
-    fi
-    __add_status        "$ResetColor$GIT_PROMPT_SUFFIX"
-
-    NEW_PROMPT="$(gp_add_virtualenv_to_prompt)$PROMPT_START$($prompt_callback)$STATUS_PREFIX$STATUS$PROMPT_END"
-  else
-    NEW_PROMPT="$EMPTY_PROMPT"
-  fi
-  
-  # don't change or output anything ... the internal workings need this function for something 
-  # so let it do it's thing but don't take any actions
-  #PS1="${NEW_PROMPT//_LAST_COMMAND_INDICATOR_/${LAST_COMMAND_INDICATOR}${ResetColor}}"
-
-  command rm "$GIT_INDEX_PRIVATE" 2>/dev/null
-}
-
-
-function omg {
-  local LAST_COMMAND_INDICATOR
-  local PROMPT_LEADING_SPACE
-  local PROMPT_START
-  local PROMPT_END
-  local EMPTY_PROMPT
-  local Blue="\[\033[0;34m\]"
-
-  git_prompt_config
-
-  export __GIT_PROMPT_IGNORE_STASH=${GIT_PROMPT_IGNORE_STASH}
-  export __GIT_PROMPT_SHOW_UPSTREAM=${GIT_PROMPT_SHOW_UPSTREAM}
-  export __GIT_PROMPT_IGNORE_SUBMODULES=${GIT_PROMPT_IGNORE_SUBMODULES}
-
-  if [ -z "${GIT_PROMPT_SHOW_UNTRACKED_FILES}" ]; then
-    export __GIT_PROMPT_SHOW_UNTRACKED_FILES=all
-  else
-    export __GIT_PROMPT_SHOW_UNTRACKED_FILES=${GIT_PROMPT_SHOW_UNTRACKED_FILES}
-  fi
-
-  if [ -z "${GIT_PROMPT_SHOW_CHANGED_FILES_COUNT}" ]; then
-    export __GIT_PROMPT_SHOW_CHANGED_FILES_COUNT=1
-  else
-    export __GIT_PROMPT_SHOW_CHANGED_FILES_COUNT=${GIT_PROMPT_SHOW_CHANGED_FILES_COUNT}
-  fi
-
-  local GIT_INDEX_PRIVATE="$(createPrivateIndex)"
-  #important to define GIT_INDEX_FILE as local: This way it only affects this function (and below) - even with the export afterwards
-  local GIT_INDEX_FILE
-  export GIT_INDEX_FILE="$GIT_INDEX_PRIVATE"
-
-  local -a git_status_fields
-  #gsf=$git_status_fields
-  git_status_fields=($("$__GIT_STATUS_CMD" 2>/dev/null))
-  
-
-  export GIT_BRANCH=$(replaceSymbols ${git_status_fields[0]})
-  local GIT_REMOTE="$(replaceSymbols ${git_status_fields[1]})"
-  if [[ "." == "$GIT_REMOTE" ]]; then
-    unset GIT_REMOTE
-  fi
-
-  local GIT_UPSTREAM_PRIVATE="${git_status_fields[2]}"
-  if [[ -z "${__GIT_PROMPT_SHOW_UPSTREAM}" || "^" == "$GIT_UPSTREAM_PRIVATE" ]]; then
-    unset GIT_UPSTREAM
-  else
-    export GIT_UPSTREAM=${GIT_UPSTREAM_PRIVATE}
-    local GIT_FORMATTED_UPSTREAM="${GIT_PROMPT_UPSTREAM//_UPSTREAM_/\$GIT_UPSTREAM}"
-  fi
-
-  local GIT_STAGED=${git_status_fields[3]}
-  local GIT_CONFLICTS=${git_status_fields[4]}
-  local GIT_CHANGED=${git_status_fields[5]}
-  local GIT_UNTRACKED=${git_status_fields[6]}
-  local GIT_STASHED=${git_status_fields[7]}
-  local GIT_CLEAN=${git_status_fields[8]}
-
-  local NEW_PROMPT="$EMPTY_PROMPT"
-  if [[ -n "$git_status_fields" ]]; then
-
-    case "$GIT_BRANCH" in
-      $GIT_PROMPT_MASTER_BRANCHES)
-        local STATUS_PREFIX="${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_MASTER_BRANCH}\${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}"
-        ;;
-      *)
-        local STATUS_PREFIX="${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_BRANCH}\${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}"
-        ;;
-    esac
-    local STATUS=""
-
-    # __add_status KIND VALEXPR INSERT
-    # eg: __add_status  'STAGED' '-ne 0'
-
-    __chk_gitvar_status() {
-      local v
-      if [[ "x$2" == "x-n" ]] ; then
-        v="$2 \"\$GIT_$1\""
-      else
-        v="\$GIT_$1 $2"
-      fi
-      if eval "test $v" ; then
-        if [[ $# -lt 2 || "$3" != '-' ]] && [[ "x$__GIT_PROMPT_SHOW_CHANGED_FILES_COUNT" == "x1" || "x$1" == "xREMOTE" ]]; then
-          __add_status "\$GIT_PROMPT_$1\$GIT_$1\$ResetColor"
-        else
-          __add_status "\$GIT_PROMPT_$1\$ResetColor"
-        fi
-      fi
-    }
-    
-    __add_gitvar_status() {
-      __add_status "\$GIT_PROMPT_$1\$GIT_$1\$ResetColor"
-    }
-
-    # __add_status SOMETEXT
-    __add_status() {
-      eval "STATUS=\"$STATUS$1\""
-    }
-
-    __chk_gitvar_status 'REMOTE'     '-n'
-    if [[ $GIT_CLEAN -eq 0 ]] || [[ $GIT_PROMPT_CLEAN != "" ]]; then
-      __add_status        "$GIT_PROMPT_SEPARATOR"
-      __chk_gitvar_status 'STAGED'     '!= "0" -a $GIT_STAGED != "^"'
-      __chk_gitvar_status 'CONFLICTS'  '!= "0"'
-      __chk_gitvar_status 'CHANGED'    '!= "0"'
-      __chk_gitvar_status 'UNTRACKED'  '!= "0"'
-      __chk_gitvar_status 'STASHED'    '!= "0"'
-      __chk_gitvar_status 'CLEAN'      '= "1"'   -
-    fi
-    __add_status        "$ResetColor$GIT_PROMPT_SUFFIX"
-
-    NEW_PROMPT="$(gp_add_virtualenv_to_prompt)$PROMPT_START$($prompt_callback)$STATUS_PREFIX$STATUS$PROMPT_END"
-  else
-    NEW_PROMPT="$EMPTY_PROMPT"
-  fi
-  
-  # don't update the prompt, just return the git part of the prompt
-  # Thus this script won't clobber my custom prompt but become part of it
-  # muahahahahahahahahah ... 
-  #PS1="${NEW_PROMPT//_LAST_COMMAND_INDICATOR_/${LAST_COMMAND_INDICATOR}${ResetColor}}"
-  echo "$STATUS_PREFIX$STATUS"
-
-  command rm "$GIT_INDEX_PRIVATE" 2>/dev/null
-}
-
 function printPrompt {
-  echo "printPrompt called" >> /tmp/gitp.log
   local LAST_COMMAND_INDICATOR
   local PROMPT_LEADING_SPACE
   local PROMPT_START
   local PROMPT_END
   local EMPTY_PROMPT
-  local Blue="\[\033[0;34m\]"
 
   git_prompt_config
 
@@ -631,9 +317,9 @@ function printPrompt {
   export GIT_INDEX_FILE="$GIT_INDEX_PRIVATE"
 
   local -a git_status_fields
-  #gsf=$git_status_fields
-  git_status_fields=($("$__GIT_STATUS_CMD" 2>/dev/null))
-  
+  git_status_fields=($("$dir/gitstatus.sh" 2>/dev/null))
+
+  printf '%s\n' "${git_status_fields[@]}"# > /tmp/gitp_fields.log
 
   export GIT_BRANCH=$(replaceSymbols ${git_status_fields[0]})
   local GIT_REMOTE="$(replaceSymbols ${git_status_fields[1]})"
@@ -661,14 +347,15 @@ function printPrompt {
 
     case "$GIT_BRANCH" in
       $GIT_PROMPT_MASTER_BRANCHES)
-        local STATUS_PREFIX="${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_MASTER_BRANCH}\${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}"
+        local STATUS_PREFIX="${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_MASTER_BRANCH}${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}"
         ;;
       *)
-        local STATUS_PREFIX="${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_BRANCH}\${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}"
+        local STATUS_PREFIX="${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_BRANCH}${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}"
         ;;
     esac
     local STATUS=""
 
+    echo "${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_BRANCH}${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}" > /tmp/gitp_prompt.log
     # __add_status KIND VALEXPR INSERT
     # eg: __add_status  'STAGED' '-ne 0'
 
@@ -718,6 +405,7 @@ function printPrompt {
   # Thus this script won't clobber my custom prompt but become part of it
   # muahahahahahahahahah ... 
   #PS1="${NEW_PROMPT//_LAST_COMMAND_INDICATOR_/${LAST_COMMAND_INDICATOR}${ResetColor}}"
+  #echo "$STATUS_PREFIX$STATUS" > /tmp/gitp_prompt.log
   echo "$STATUS_PREFIX$STATUS"
 
   command rm "$GIT_INDEX_PRIVATE" 2>/dev/null
@@ -773,58 +461,6 @@ function prompt_callback_default {
   return
 }
 
-# toggle gitprompt
-function git_prompt_toggle {
-  echo "git_prompt_toggle called" >> /tmp/gitp.log
-  if [[ "$GIT_PROMPT_DISABLE" = 1 ]]; then
-    GIT_PROMPT_DISABLE=0
-  else
-    GIT_PROMPT_DISABLE=1
-  fi
-  return
-}
+#updatePrompt
 
-function gp_install_prompt {
-  echo "gp_install_prompt called" >> /tmp/gitp.log
-  if [ -z "$OLD_GITPROMPT" ]; then
-    OLD_GITPROMPT=$PS1
-  fi
-
-  if [ -z "$GIT_PROMPT_OLD_DIR_WAS_GIT" ]; then
-    GIT_PROMPT_OLD_DIR_WAS_GIT=$(we_are_on_repo)
-  fi
-
-  if [ -z "$PROMPT_COMMAND" ]; then
-    PROMPT_COMMAND=setGitPrompt
-  else
-    PROMPT_COMMAND=${PROMPT_COMMAND%% }; # remove trailing spaces
-    PROMPT_COMMAND=${PROMPT_COMMAND%\;}; # remove trailing semi-colon
-
-    local new_entry="setGitPrompt"
-    case ";$PROMPT_COMMAND;" in
-      *";$new_entry;"*)
-        # echo "PROMPT_COMMAND already contains: $new_entry"
-        :;;
-      *)
-        PROMPT_COMMAND="$PROMPT_COMMAND;$new_entry"
-        # echo "PROMPT_COMMAND does not contain: $new_entry"
-        ;;
-    esac
-  fi
-
-  local setLastCommandStateEntry="setLastCommandState"
-  case ";$PROMPT_COMMAND;" in
-    *";$setLastCommandStateEntry;"*)
-      # echo "PROMPT_COMMAND already contains: $setLastCommandStateEntry"
-      :;;
-    *)
-      PROMPT_COMMAND="$setLastCommandStateEntry;$PROMPT_COMMAND"
-      # echo "PROMPT_COMMAND does not contain: $setLastCommandStateEntry"
-      ;;
-  esac
-
-  git_prompt_dir
-  source "$__GIT_PROMPT_DIR/git-prompt-help.sh"
-}
-
-gp_install_prompt
+source "$dir/git-prompt-help.sh"

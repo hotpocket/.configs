@@ -52,9 +52,10 @@ PY_VENV_AUTO=`pyenv virtualenvs | grep ^\* | sed -E 's/\* (\w*).*/\1/'`
 # pyenv says we have a venv ($PY_VENV_AUTO has non-zero size) but we haven't activated one explicitly ($PYENV_VERSION has zero size)
 [ -n "$PY_VENV_AUTO" ] && [ -z "$PY_VENV" ] && PY_VENV="(${YELLOW}$PY_VENV_AUTO${NC}) "
 
+source ~/git/.configs/git_prompt_deps/gp_test.sh
+
 GIT_STATUS=''
 if [[ "$(we_are_on_repo)" = "1" ]]; then
-  gp_install_prompt
   GIT_STATUS="$(printPrompt)"
 fi
 

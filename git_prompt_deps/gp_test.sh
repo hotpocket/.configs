@@ -58,24 +58,6 @@ git_prompt_reset() {
   done
 }
 
-# gp_format_exit_status RETVAL
-#
-# echos the symbolic signal name represented by RETVAL if the process was
-# signalled, otherwise echos the original value of RETVAL
-
-gp_format_exit_status() {
-  local RETVAL="$1"
-  local SIGNAL
-  # Suppress STDERR in case RETVAL is not an integer (in such cases, RETVAL
-  # is echoed verbatim)
-  if [ "${RETVAL}" -gt 128 ] 2>/dev/null; then
-    SIGNAL=$(( ${RETVAL} - 128 ))
-    kill -l "${SIGNAL}" 2>/dev/null || echo "${RETVAL}"
-  else
-    echo "${RETVAL}"
-  fi
-}
-
 function git_prompt_config {
   _isroot=false
   [[ $UID -eq 0 ]] && _isroot=true
@@ -85,18 +67,6 @@ function git_prompt_config {
   else
     prompt_callback="prompt_callback_default"
   fi
-
-  if [[ "$GIT_PROMPT_LAST_COMMAND_STATE" = "0" ]]; then
-    LAST_COMMAND_INDICATOR="$GIT_PROMPT_COMMAND_OK";
-  else
-    LAST_COMMAND_INDICATOR="$GIT_PROMPT_COMMAND_FAIL";
-  fi
-
-  # replace _LAST_COMMAND_STATE_ token with the actual state
-  GIT_PROMPT_LAST_COMMAND_STATE=$(gp_format_exit_status ${GIT_PROMPT_LAST_COMMAND_STATE})
-  LAST_COMMAND_INDICATOR="${LAST_COMMAND_INDICATOR//_LAST_COMMAND_STATE_/${GIT_PROMPT_LAST_COMMAND_STATE}}"
-
-  # Do this only once to define PROMPT_START and PROMPT_END
 
   if [[ -z "$PROMPT_START" || -z "$PROMPT_END" ]]; then
 

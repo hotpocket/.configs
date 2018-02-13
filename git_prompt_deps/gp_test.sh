@@ -11,6 +11,7 @@ online=true
 
 source $gitp_dir/prompt-colors.sh
 source $gitp_dir/themes/default
+source $gitp_dir/git-prompt-help.sh
 
 function git_prompt_config {
   _isroot=false
@@ -67,69 +68,6 @@ function git_prompt_config {
   unset GIT_BRANCH
 }
 
-function setLastCommandState {
-  echo "setLastCommandState called" >> /tmp/gitp.log
-  GIT_PROMPT_LAST_COMMAND_STATE=$?
-}
-
-function we_are_on_repo {
-  echo "we_are_on_repo called" >> /tmp/gitp.log
-  if [[ -e "$(git rev-parse --git-dir 2> /dev/null)" ]]; then
-    echo 1
-    return
-  fi
-  echo 0
-}
-
-function setGitPrompt {
-  echo "setGitPrompt called" >> /tmp/gitp.log
-
-  local repo=$(git rev-parse --show-toplevel 2> /dev/null)
-
-  # Don't generate stuff if not in a git repo
-  if [[ ! -e "$repo" ]] && [[ "$GIT_PROMPT_ONLY_IN_REPO" = 1 ]]; then
-    return
-  fi
-
-  local EMPTY_PROMPT
-
-  git_prompt_config
-
-  if [[ ! -e "$repo" ]] || [[ "$GIT_PROMPT_DISABLE" = 1 ]]; then
-    return
-  fi
-
-  local FETCH_REMOTE_STATUS=1
-
-  unset GIT_PROMPT_IGNORE
-  OLD_GIT_PROMPT_SHOW_UNTRACKED_FILES=${GIT_PROMPT_SHOW_UNTRACKED_FILES}
-  unset GIT_PROMPT_SHOW_UNTRACKED_FILES
-
-  OLD_GIT_PROMPT_IGNORE_SUBMODULES=${GIT_PROMPT_IGNORE_SUBMODULES}
-  unset GIT_PROMPT_IGNORE_SUBMODULES
-
-  if [ -z "${GIT_PROMPT_SHOW_UNTRACKED_FILES}" ]; then
-    GIT_PROMPT_SHOW_UNTRACKED_FILES=${OLD_GIT_PROMPT_SHOW_UNTRACKED_FILES}
-  fi
-  unset OLD_GIT_PROMPT_SHOW_UNTRACKED_FILES
-
-  if [ -z "${GIT_PROMPT_IGNORE_SUBMODULES}" ]; then
-    GIT_PROMPT_IGNORE_SUBMODULES=${OLD_GIT_PROMPT_IGNORE_SUBMODULES}
-  fi
-  unset OLD_GIT_PROMPT_IGNORE_SUBMODULES
-
-  if [[ "$GIT_PROMPT_IGNORE" = 1 ]]; then
-    return
-  fi
-
-  if $online; then
-    checkUpstream
-  fi
-  
-  # seperate this out for now.  i'm in isolation mode.
-  #updatePrompt
-}
-
 function olderThanMinutes {
   local matches
   local find_exit_code
@@ -144,37 +82,10 @@ function olderThanMinutes {
 
 }
 
-function checkUpstream {
-  local GIT_PROMPT_FETCH_TIMEOUT
-  git_prompt_config
-
-  local FETCH_HEAD="$repo/.git/FETCH_HEAD"
-#  # Fech repo if local is stale for more than $GIT_FETCH_TIMEOUT minutes
-  if [[ ! -e "$FETCH_HEAD" ]] || olderThanMinutes "$FETCH_HEAD" "$GIT_PROMPT_FETCH_TIMEOUT"
-  then
-    if [[ -n $(git remote show) ]]; then
-      (
-        GIT_TERMINAL_PROMPT=0 git fetch --quiet > /dev/null &
-        disown -h
-      )
-    fi
-  fi
+# exit signal trapper.  clean things up
+function trapper {
+  set +f   # replaceSymbols could have disabled globbing
 }
-
-#function checkUpstream {
-#  echo "checkUpstream called" >> /tmp/gitp.log
-#  local GIT_PROMPT_FETCH_TIMEOUT
-#  git_prompt_config
-#
-#  local FETCH_HEAD="$repo/.git/FETCH_HEAD"
-#  # Fech repo if local is stale for more than $GIT_FETCH_TIMEOUT minutes
-#  if [[ ! -e "$FETCH_HEAD" ]]  \
-#     || olderThanMinutes "$FETCH_HEAD" "$GIT_PROMPT_FETCH_TIMEOUT"  \
-#     && [[ -n $(git remote show) ]];
-#  then
-#    GIT_TERMINAL_PROMPT=0 git fetch --quiet > /dev/null 2>&1 &
-#  fi
-#}
 
 function replaceSymbols {
   echo "replaceSymbols called" >> /tmp/gitp.log
@@ -211,6 +122,11 @@ function createPrivateIndex {
 }
 
 function printPrompt {
+  # check to see if we are in a dir that is part of a repo, if not return
+  if [[ ! -e "$(git rev-parse --git-dir 2> /dev/null)" ]]; then
+    return
+  fi
+
   local LAST_COMMAND_INDICATOR
   local PROMPT_LEADING_SPACE
   local PROMPT_START
@@ -385,4 +301,3 @@ function prompt_callback_default {
   return
 }
 
-source "$gitp_dir/git-prompt-help.sh"

@@ -54,10 +54,7 @@ PY_VENV_AUTO=`pyenv virtualenvs | grep ^\* | sed -E 's/\* (\w*).*/\1/'`
 
 source ~/git/.configs/git_prompt_deps/gp_test.sh
 
-GIT_STATUS=''
-if [[ "$(we_are_on_repo)" = "1" ]]; then
-  GIT_STATUS="$(printPrompt)"
-fi
+GIT_STATUS="$(printPrompt)"
 
 if [ $(id -u) -eq 0 ]; then
   PS1="┌[${RED}\u${NC}] [$THEIP]${IN_SSH} [${DATE}]${GIT_STATUS}: ${green}\w${NC} \n└>"

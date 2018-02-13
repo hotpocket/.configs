@@ -1,62 +1,16 @@
 #!/usr/bin/env bash
 
+# flush logs
+for i in /tmp/gitp*;do echo -n > $i; done
+
 # the dir that this script resides in
-dir=$(dirname $BASH_SOURCE)
+gitp_dir=$(dirname $BASH_SOURCE)
 
 # enable/disable git remote status checks
 online=true
 
-source $dir/prompt-colors.sh
-source $dir/themes/default
-
-function gp_set_file_var {
-  echo "gp_set_file_var called" >> /tmp/gitp.log
-  local envar="$1"
-  local file="$2"
-  if eval "[[ -n \"\$$envar\" && -r \"\$$envar\" ]]" ; then # is envar set to a readable file?
-    local basefile
-    eval "basefile=\"\`basename \\\"\$$envar\\\"\`\""   # assign basefile
-    if [[ "$basefile" = "$file" || "$basefile" = ".$file" ]]; then
-      return 0
-    fi
-  else  # envar is not set, or it's set to a different file than requested
-    eval "$envar="      # set empty envar
-    gp_maybe_set_envar_to_path "$envar" "$HOME/.$file" "$HOME/$file" "$HOME/lib/$file" && return 0
-    gp_maybe_set_envar_to_path "$envar" "$dir/$file" "${0##*/}/$file"     && return 0
-  fi
-  return 1
-}
-
-# gp_maybe_set_envar_to_path ENVAR FILEPATH ...
-#
-# return 0 (true) if any FILEPATH is readable, set ENVAR to it
-# return 1 (false) if not
-
-function gp_maybe_set_envar_to_path {
-  echo "gp_maybe_set_envar_to_path called" >> /tmp/gitp.log
-  local envar="$1"
-  shift
-  local file
-  for file in "$@" ; do
-    if [[ -r "$file" ]]; then
-      eval "$envar=\"$file\""
-      return 0
-    fi
-  done
-  return 1
-}
-
-# git_prompt_reset
-#
-# unsets selected GIT_PROMPT variables, causing the next prompt callback to
-# recalculate them from scratch.
-
-git_prompt_reset() {
-  local var
-  for var in __GIT_PROMPT_COLORS_FILE __PROMPT_COLORS_FILE GIT_PROMPT_THEME_NAME; do
-    unset $var
-  done
-}
+source $gitp_dir/prompt-colors.sh
+source $gitp_dir/themes/default
 
 function git_prompt_config {
   _isroot=false
@@ -287,7 +241,7 @@ function printPrompt {
   export GIT_INDEX_FILE="$GIT_INDEX_PRIVATE"
 
   local -a git_status_fields
-  git_status_fields=($("$dir/gitstatus.sh" 2>/dev/null))
+  git_status_fields=($("$gitp_dir/gitstatus.sh" 2>/dev/null))
 
   printf '%s\n' "${git_status_fields[@]}"# > /tmp/gitp_fields.log
 
@@ -431,6 +385,4 @@ function prompt_callback_default {
   return
 }
 
-#updatePrompt
-
-source "$dir/git-prompt-help.sh"
+source "$gitp_dir/git-prompt-help.sh"

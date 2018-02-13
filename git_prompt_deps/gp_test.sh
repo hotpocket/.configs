@@ -13,6 +13,14 @@ source $gitp_dir/prompt-colors.sh
 source $gitp_dir/themes/default
 source $gitp_dir/git-prompt-help.sh
 
+# catch kill & exit signals do do some cleanup before this process dies
+trap trapper 0 2 3 6 15 # exit(exit from shell) sigint sigquit sigabrt sigterm
+
+# this script has received some exit signal.  Do var & env cleanup here.
+function trapper {
+  set +f   # replaceSymbols could have disabled globbing
+}
+
 function git_prompt_config {
   _isroot=false
   [[ $UID -eq 0 ]] && _isroot=true
@@ -80,11 +88,6 @@ function olderThanMinutes {
     return 1
   fi
 
-}
-
-# exit signal trapper.  clean things up
-function trapper {
-  set +f   # replaceSymbols could have disabled globbing
 }
 
 function replaceSymbols {

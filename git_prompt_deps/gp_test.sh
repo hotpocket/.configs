@@ -109,21 +109,6 @@ function replaceSymbols {
   set +f
 }
 
-function createPrivateIndex {
-  echo "createPrivateIndex called" >> /tmp/gitp.log
-  # Create a copy of the index to avoid conflicts with parallel git commands, e.g. git rebase.
-  local __GIT_INDEX_FILE
-  local __GIT_INDEX_PRIVATE
-  if [[ -z "$GIT_INDEX_FILE" ]]; then
-    __GIT_INDEX_FILE="$(git rev-parse --git-dir)/index"
-  else
-    __GIT_INDEX_FILE="$GIT_INDEX_FILE"
-  fi
-  __GIT_INDEX_PRIVATE="/tmp/git-index-private$$"
-  command cp "$__GIT_INDEX_FILE" "$__GIT_INDEX_PRIVATE" 2>/dev/null
-  echo "$__GIT_INDEX_PRIVATE"
-}
-
 function printPrompt {
   # check to see if we are in a dir that is part of a repo, if not return
   if [[ ! -e "$(git rev-parse --git-dir 2> /dev/null)" ]]; then
@@ -153,11 +138,6 @@ function printPrompt {
   else
     export __GIT_PROMPT_SHOW_CHANGED_FILES_COUNT=${GIT_PROMPT_SHOW_CHANGED_FILES_COUNT}
   fi
-
-  local GIT_INDEX_PRIVATE="$(createPrivateIndex)"
-  #important to define GIT_INDEX_FILE as local: This way it only affects this function (and below) - even with the export afterwards
-  local GIT_INDEX_FILE
-  export GIT_INDEX_FILE="$GIT_INDEX_PRIVATE"
 
   local -a git_status_fields
   git_status_fields=($("$gitp_dir/gitstatus.sh" 2>/dev/null))
@@ -199,9 +179,9 @@ function printPrompt {
     local STATUS=""
 
     echo "${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_BRANCH}${GIT_BRANCH}${ResetColor}${GIT_FORMATTED_UPSTREAM}" > /tmp/gitp_prompt.log
-    # __add_status KIND VALEXPR INSERT
-    # eg: __add_status  'STAGED' '-ne 0'
 
+    ## __add_status KIND VALEXPR INSERT
+    ## eg: __add_status  'STAGED' '-ne 0'
     __chk_gitvar_status() {
       local v
       if [[ "x$2" == "x-n" ]] ; then
@@ -244,14 +224,7 @@ function printPrompt {
     NEW_PROMPT="$EMPTY_PROMPT"
   fi
   
-  # don't update the prompt, just return the git part of the prompt
-  # Thus this script won't clobber my custom prompt but become part of it
-  # muahahahahahahahahah ... 
-  #PS1="${NEW_PROMPT//_LAST_COMMAND_INDICATOR_/${LAST_COMMAND_INDICATOR}${ResetColor}}"
-  #echo "$STATUS_PREFIX$STATUS" > /tmp/gitp_prompt.log
   echo "$STATUS_PREFIX$STATUS"
-
-  command rm "$GIT_INDEX_PRIVATE" 2>/dev/null
 }
 
 # Helper function that returns virtual env information to be set in prompt

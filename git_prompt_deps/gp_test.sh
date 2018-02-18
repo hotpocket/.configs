@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # flush logs
-for i in /tmp/gitp*;do echo -n > $i; done
+for i in /tmp/gitp*; do echo -n > "$i"; done
 
 # the dir that this script resides in
 gitp_dir=$(dirname $BASH_SOURCE)
@@ -21,75 +21,6 @@ function trapper {
   set +f   # replaceSymbols could have disabled globbing
 }
 
-function git_prompt_config {
-  _isroot=false
-  [[ $UID -eq 0 ]] && _isroot=true
-
-  if is_function prompt_callback; then
-    prompt_callback="prompt_callback"
-  else
-    prompt_callback="prompt_callback_default"
-  fi
-
-  if [[ -z "$PROMPT_START" || -z "$PROMPT_END" ]]; then
-
-    if [[ -z "$GIT_PROMPT_START" ]] ; then
-      if $_isroot; then
-        PROMPT_START="$GIT_PROMPT_START_ROOT"
-      else
-        PROMPT_START="$GIT_PROMPT_START_USER"
-      fi
-    else
-      PROMPT_START="$GIT_PROMPT_START"
-    fi
-
-    if [[ -z "$GIT_PROMPT_END" ]] ; then
-      if $_isroot; then
-        PROMPT_END="$GIT_PROMPT_END_ROOT"
-      else
-        PROMPT_END="$GIT_PROMPT_END_USER"
-      fi
-    else
-      PROMPT_END="$GIT_PROMPT_END"
-    fi
-  fi
-
-  # set GIT_PROMPT_LEADING_SPACE to 0 if you want to have no leading space in front of the GIT prompt
-  if [[ "$GIT_PROMPT_LEADING_SPACE" = 0 ]]; then
-    PROMPT_LEADING_SPACE=""
-  else
-    PROMPT_LEADING_SPACE=" "
-  fi
-
-  if [[ "$GIT_PROMPT_ONLY_IN_REPO" = 1 ]]; then
-    EMPTY_PROMPT="$OLD_GITPROMPT"
-  else
-    local ps="$(gp_add_virtualenv_to_prompt)$PROMPT_START$($prompt_callback)$PROMPT_END"
-    EMPTY_PROMPT="${ps//_LAST_COMMAND_INDICATOR_/${LAST_COMMAND_INDICATOR}}"
-  fi
-
-  # fetch remote revisions every other $GIT_PROMPT_FETCH_TIMEOUT (default 5) minutes
-  if [[ -z "$GIT_PROMPT_FETCH_TIMEOUT" ]]; then
-    GIT_PROMPT_FETCH_TIMEOUT="5"
-  fi
-
-  unset GIT_BRANCH
-}
-
-function olderThanMinutes {
-  local matches
-  local find_exit_code
-
-  matches=$(find "$1" -mmin +"$2" 2> /dev/null)
-  echo "find "$1" -mmin +"$2" 2> /dev/null" >> /tmp/gitp_maches.log
-  if [[ -n "$matches" ]]; then
-    return 0
-  else
-    return 1
-  fi
-
-}
-
 function replaceSymbols {
   echo "replaceSymbols called" >> /tmp/gitp.log
   # Disable globbing, so a * could be used as symbol here
@@ -107,6 +38,7 @@ function replaceSymbols {
 
   # reenable globbing symbols
   set +f
+  echo "$VALUE  -  $VALUE1  -  $VALUE2" >> /tmp/gitp_sfdbg.log
 }
 
 function printPrompt {
@@ -120,8 +52,6 @@ function printPrompt {
   local PROMPT_START
   local PROMPT_END
   local EMPTY_PROMPT
-
-  git_prompt_config
 
   export __GIT_PROMPT_IGNORE_STASH=${GIT_PROMPT_IGNORE_STASH}
   export __GIT_PROMPT_SHOW_UPSTREAM=${GIT_PROMPT_SHOW_UPSTREAM}
@@ -143,7 +73,6 @@ function printPrompt {
   git_status_fields=($("$gitp_dir/gitstatus.sh" 2>/dev/null))
 
   printf '%s\n' "${git_status_fields[@]}"# > /tmp/gitp_fields.log
-
   export GIT_BRANCH=$(replaceSymbols ${git_status_fields[0]})
   local GIT_REMOTE="$(replaceSymbols ${git_status_fields[1]})"
   if [[ "." == "$GIT_REMOTE" ]]; then

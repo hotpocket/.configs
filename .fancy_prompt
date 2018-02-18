@@ -31,7 +31,7 @@ complete -cf sudo
 # if mac use the ifconfig command   ... we don't need no stinkin macs!
 #THEIP=$(uname -o | grep -i darwin > /dev/null 2>&1 && echo "$(ifconfig|grep broadcast|awk ' { print $2 }')")
 
-THEIP=$(type ip > /dev/null 2>&1 && echo $(ip route get 8.8.8.8 | awk '{print $NF; exit}'))
+THEIP=$(type /sbin/ip > /dev/null 2>&1 && echo $(/sbin/ip route get 8.8.8.8 | awk '{print $NF; exit}'))
 
 if [ -z "$THEIP" ]; then
   #THEIP=$(uname -o | grep -i linux > /dev/null 2>&1 && echo "echo $(ip route get 8.8.8.8 | awk '{print $NF; exit}')")

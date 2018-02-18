@@ -101,6 +101,9 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   done
 done <<< "$gitstatus"
 
+echo $branch_line > /tmp/omfg
+#branch_line=`git branch | strings | sed 's/* //g'`
+
 num_stashed=0
 if [[ "$__GIT_PROMPT_IGNORE_STASH" != "1" ]]; then
   stash_file="$( git rev-parse --git-dir )/logs/refs/stash"
@@ -163,6 +166,10 @@ fi
 if [[ -z "$upstream" ]] ; then
   upstream='^'
 fi
+
+# work around issues with older versions of git
+branch="`git branch --no-color | sed 's/* //'`"
+upstream="`git remote`/$branch"
 
 printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n" \
   "${branch}${state}" \

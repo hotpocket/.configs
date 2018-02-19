@@ -11,7 +11,7 @@ BLUE='\e[1;34m'
 cyan='\e[0;36m'
 CYAN='\e[1;36m'
 NC='\e[0m' # no color
-DATE='\D{%a %b %d%k:%M}'  # ~like~  'Mon Feb 13 23:51'
+DATE='\D{%a %b %d %k:%M}'  # ~like~  'Mon Feb 13 23:51'
 
 [ -z "$PS1" ] && return
 HISTCONTROL=ignoredups:ignorespace

@@ -1,6 +1,6 @@
 [user]
   name = hotpocket
-  email = sirjava@gmail.com
+  email = githotpocket@gmail.com
 [alias]
   lg = log --oneline --decorate --all --graph
   stat = status --porcelain -b

@@ -77,6 +77,7 @@ num_staged=0
 num_changed=0
 num_conflicts=0
 num_untracked=0
+>/tmp/branch_info
 while IFS='' read -r line || [[ -n "$line" ]]; do
   status=${line:0:2}
   while [[ -n $status ]]; do
@@ -117,12 +118,14 @@ if (( num_changed == 0 && num_staged == 0 && num_untracked == 0 && num_stashed =
 fi
 
 IFS="^" read -ra branch_fields <<< "${branch_line/\#\# }"
+echo `printf '%s\n' "${branch_fields[@]}"` > /tmp/branch_fields
 branch="${branch_fields[0]}"
 remote=
 upstream=
 
 if [[ "$branch" == *"Initial commit on"* ]]; then
   IFS=" " read -ra fields <<< "$branch"
+  echo `printf '%s\n' "${fields[@]}"` > /tmp/branch_fields2
   branch="${fields[3]}"
   remote="_NO_REMOTE_TRACKING_"
 elif [[ "$branch" == *"No commits yet on"* ]]; then
@@ -165,8 +168,8 @@ if [[ -z "$upstream" ]] ; then
 fi
 
 # work around issues with older versions of git
-branch="`git branch --no-color | sed 's/* //'`"
-upstream="`git remote`/$branch"
+#branch="`git branch --no-color | sed 's/* //'`"
+#upstream="`git remote`/$branch"
 
 printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n" \
   "${branch}${state}" \

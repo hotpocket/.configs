@@ -47,7 +47,7 @@ PY_VENV=""
 [ -n "$PYENV_VERSION" ] && PY_VENV="(${GREEN}$PYENV_VERSION${NC}) "
 
 # pyenv will auto activate a virtualenv if there is a .python-version in . or above and it specifies a valid virtualenv
-PY_VENV_AUTO=`pyenv virtualenvs | grep ^\* | sed -E 's/\* (\w*).*/\1/'`
+PY_VENV_AUTO=`pyenv virtualenvs | grep ^\* | sed -E 's/\* ((\w|-)*).*/\1/'`
 
 # pyenv says we have a venv ($PY_VENV_AUTO has non-zero size) but we haven't activated one explicitly ($PYENV_VERSION has zero size)
 [ -n "$PY_VENV_AUTO" ] && [ -z "$PY_VENV" ] && PY_VENV="(${YELLOW}$PY_VENV_AUTO${NC}) "
